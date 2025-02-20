@@ -9,6 +9,7 @@ import google.generativeai as genai
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
 def get_gemini_response(input, pdf_content, prompt):
     model = genai.GenerativeModel('gemini-1.5-flash')
     response = model.generate_content([input, pdf_content[0], prompt])
@@ -16,22 +17,28 @@ def get_gemini_response(input, pdf_content, prompt):
 
 def input_pdf_setup(uploaded_file):
     if uploaded_file is not None:
-        # Convert the PDF to image
-        images = pdf2image.convert_from_bytes(uploaded_file.read())
-        first_page = images[0]
+        try:
+            # Path to the Poppler binaries
+            poppler_path = os.path.join(os.getcwd(), 'poppler', 'bin')
 
-        # Convert to bytes
-        img_byte_arr = io.BytesIO()
-        first_page.save(img_byte_arr, format='JPEG')
-        img_byte_arr = img_byte_arr.getvalue()
+            # Convert the PDF to image
+            images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path=poppler_path)
+            first_page = images[0]
 
-        pdf_parts = [
-            {
-                "mime_type": "image/jpeg",
-                "data": base64.b64encode(img_byte_arr).decode()  # encode to base64
-            }
-        ]
-        return pdf_parts
+            # Convert to bytes
+            img_byte_arr = io.BytesIO()
+            first_page.save(img_byte_arr, format='JPEG')
+            img_byte_arr = img_byte_arr.getvalue()
+
+            pdf_parts = [
+                {
+                    "mime_type": "image/jpeg",
+                    "data": base64.b64encode(img_byte_arr).decode()  # encode to base64
+                }
+            ]
+            return pdf_parts
+        except Exception as e:
+            raise RuntimeError(f"Error processing PDF: {e}")
     else:
         raise FileNotFoundError("No file uploaded")
 
